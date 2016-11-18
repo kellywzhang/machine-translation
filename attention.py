@@ -10,6 +10,12 @@ Credits: Idea from https://arxiv.org/pdf/1606.02858v2.pdf
 
 import tensorflow as tf
 
+"""class Attention(object):
+
+    def __call__(self, inputs, state, time_mask, scope=None):
+        raise NotImplementedError("Abstract method")
+"""
+
 class BilinearFunction(object):
     def __init__(self, attending_size, attended_size, scope=None):
       self._attending_size = attending_size
@@ -50,7 +56,7 @@ class BilinearFunction(object):
 
           # Transpose so broadcasting scalar division works properly
           # Dimensions (batch x time)
-          alpha_weights = tf.transpose(tf.div(tf.transpose(numerator), denom))
+          alpha_weights = tf.transpose(tf.div(tf.transpose(numerator), denom), name="alpha_weights")
 
           # Find weighted sum of attended tensor using alpha_weights
           # attended dimensions: (batch x time x attended_size)
@@ -61,6 +67,6 @@ class BilinearFunction(object):
           attended_weighted_transposed = tf.mul(attended_transposed, alpha_weights)
           attended_weighted = tf.transpose(attended_weighted_transposed, perm=[1,2,0])
           # attend_result dimensions (batch x attended_size)
-          attend_result = tf.reduce_sum(attended_weighted, 1)
+          attend_result = tf.reduce_sum(attended_weighted, 1, name="attend_result")
 
           return (alpha_weights, attend_result)

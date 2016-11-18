@@ -5,3 +5,4 @@ FrenchEnglishData/*
 # Files #
 ######################
 .DS_Store
+*.p
