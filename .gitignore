@@ -1,8 +1,10 @@
 # Directories #
 ######################
 FrenchEnglishData/*
+__pycache__/*
 
 # Files #
 ######################
 .DS_Store
 *.p
+errata.py

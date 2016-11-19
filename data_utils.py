@@ -79,7 +79,7 @@ def vectorize_data(english_sentences, french_sentences, train=True):
 def batch_iter(data, num_epochs=1, batch_size=32, shuffle=True):
     data = np.array(data)
     data_size = len(data)
-    num_batches_per_epoch = int(len(data)/batch_size) + 1
+    num_batches_per_epoch = int(len(data)/batch_size)
     for epoch in range(num_epochs):
         # Shuffle the data at each epoch
         if shuffle:
@@ -102,5 +102,27 @@ for batch in batches:
     english = batch[:,0]
     french = batch[:,1]
 
-    print(english)
-    print(french)
+batch_size = 32
+
+english_lens = [len(x) for x in english]
+french_lens = [len(x) for x in french]
+english_max_len = np.max(english_lens)
+french_max_len = np.max(french_lens)
+#print(english)
+#print(french)
+#print(english_lens)
+#print(english_max_len)
+#print(len(english))
+
+print(english_lens)
+#print(english[0])
+english[0] = np.pad(english[0], (0, english_max_len), "constant")
+#print(english)
+
+#print(english_max_len)
+test = tuple([np.pad(x, (0, english_max_len-len(x)), "constant") for x in english])
+#for i in english:
+#    print(len(i))
+print(english_max_len)
+#print(test)
+#print(np.vstack(test))

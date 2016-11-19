@@ -13,6 +13,8 @@ attention_weights = np.array([[0.1,1],[1,3,4,2]])
 for weight in attention_weights:
     print(np.argmax(weight))
 
+#np.argsort
+
 """
 f = open("output.txt", 'w', encoding = "ISO-8859-1")
 for weight in attention_weights:

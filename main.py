@@ -1,55 +1,33 @@
-"""
-Goal:
-    - Create batches of (document, question, answer) tuples to feed into NN
-    - Create a vocabulary dictionary that can be referred to later
-    - Run StanfordReader with batches
-    - Save model loss, variables, etc.
-
-Datasets:
-    CNN (http://cs.nyu.edu/~kcho/DMQA/)
-        Train:      380,298
-        Validation: 3,924
-        Test:       3,198
-    DailyMail (http://cs.nyu.edu/~kcho/DMQA/)
-    Who-Did-What
-
-TODO/ISSUES: Numbers/times in documents (not represented well in vocabulary)
-
-Credits: Primarily adapted from https://github.com/danqi/rc-cnn-dailymail
-"""
-
 import tensorflow as tf
 import numpy as np
 from tensorflow.contrib import learn
 import datetime
 
+from data_utils import load_data, vectorize_data, batch_iter
 import tf_helpers
-import base_architecture
-from base_architecture import BaseNN
+from Translation import Translation
 
 # Code based on: https://github.com/dennybritz/cnn-text-classification-tf
-
-FLAGS = base_architecture.getFLAGS()
 
 # Load Data
 # =================================================================================
 
-# TODO: LOAD YOUR OWN DATA
-from tensorflow.examples.tutorials.mnist import input_data
-mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
-
-x_dev, y_dev = mnist.validation.next_batch(5000)
+english_sentences, french_sentences = load_data(train_path)
+english_indices, french_indices = vectorize_data(english_sentences, french_sentences)
+train_data = list(zip(english_indices, french_indices))
+batches = batch_iter(train_data)
 
 # Helper Functions
 # =================================================================================
-def train_step(x_batch, y_batch, current_step, writer=None, print_bool=False):
+def train_step(seq_lens_target, seq_lens_source, input_target, input_source, current_step, writer=None, print_bool=False):
 	"""
 	Single training step
 	"""
 	feed_dict = {
-		nn.input_x: x_batch,
-		nn.input_y: y_batch
-		# ADD ANY ADDITION INPUTS HERE
+		nn.seq_lens_target: seq_lens_target,
+        nn.seq_lens_source: seq_lens_source,
+        nn.input_target: input_target,
+        nn.input_source: input_source
 	}
 	_, summaries, loss_val, accuracy_val = sess.run([train_op, train_summary_op, nn.loss, nn.accuracy], feed_dict)
 
@@ -82,11 +60,11 @@ def dev_step(x_batch, y_batch, current_step, writer=None):
 # Starting Session
 # ================================================================================
 sess = tf.InteractiveSession()
-nn = BaseNN( # TODO: DEFINE YOUR OWN NETWORK
-		input_dim=784,
-		output_dim=10,
-		num_nodes=0,
-		l2_reg_lambda=0
+nn = Translation(
+		hidden_size=128,
+        vocab_size=50000,
+        embedding_dim=100,
+        batch_size=32
 	)
 
 optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate) # TODO: CHOOSE YOUR FAVORITE OPTIMZER
@@ -98,7 +76,7 @@ if gradient_clip:
 train_op = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
 train_summary_op, dev_summary_op, train_summary_writer, dev_summary_writer, timestamp, checkpoint_prefix = \
-	tf_helpers.save_summaries(sess, nn.loss, nn.accuracy, grads_and_vars, FLAGS)
+	tf_helpers.save_summaries(sess, nn.loss, nn.accuracy, grads_and_vars)
 saver = tf.train.Saver(tf.all_variables())
 
 # Training and Validation
@@ -176,8 +154,31 @@ def accuracy_early_stopping():
 
 	return (train_loss, train_accuracy, max_accuracy, max_accuracy_step)
 
-train_loss, train_accuracy, max_accuracy, max_accuracy_step = accuracy_early_stopping()
+def run_for_epochs(batches):
+	max_accuracy = 0
+	max_accuracy_step = 0
 
+	for batch in batches:
+		english_input = batch[:,0]
+        french_input = batch[:,1]
+
+		current_step = tf.train.global_step(sess, global_step)
+		if current_step % FLAGS.evaluate_every == 0:
+			train_loss, train_accuracy = train_step(x_batch, y_batch, current_step, print_bool=True)
+			#dev_loss, dev_accuracy = dev_step(x_dev, y_dev, current_step)
+
+		else:
+			train_loss, train_accuracy = train_step(x_batch, y_batch, current_step, print_bool=False)
+
+		if current_step % FLAGS.checkpoint_every == 0:
+			path = saver.save(sess, checkpoint_prefix, global_step=global_step)
+			print("Saved model checkpoint to {}".format(path))
+
+	return (train_loss, train_accuracy, max_accuracy, max_accuracy_step)
+
+train_loss, train_accuracy, max_accuracy, max_accuracy_step = run_for_epochs(batches)
+
+"""
 print("\nFinal Valildation Evaluation:")
 current_step = tf.train.global_step(sess, global_step)
 dev_loss, dev_accuracy = dev_step(x_dev, y_dev, current_step, writer=dev_summary_writer)
@@ -185,5 +186,6 @@ print("Maximum validation accuracy at step {}: {}".format(max_accuracy_step, max
 print("")
 
 tf_helpers.write_results(current_step, train_loss, train_accuracy, dev_loss, dev_accuracy, timestamp)
+"""
 
 sess.close()
